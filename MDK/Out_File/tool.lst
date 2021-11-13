@@ -1,0 +1,687 @@
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE TOOL
+OBJECT MODULE PLACED IN .\Out_File\tool.obj
+COMPILER INVOKED BY: D:\Keil_for_C51\C51\BIN\C51.EXE ..\BSP\PID\tool.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\..\
+                    -Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\src;..\CO
+                    -DE;..\BSP\Position_PID;..\BSP\oled;..\BSP\PID) DEBUG PRINT(.\Out_File\tool.lst) TABS(2) OBJECT(.\Out_File\tool.obj)
+
+line level    source
+
+   1          /**
+   2            ******************************************************************************
+   3            * File Name          :
+   4            * Description        :
+   5            ******************************************************************************
+   6            * @attention
+   7            *
+   8            *
+   9            *
+  10            *
+  11            ******************************************************************************
+  12            */
+  13          
+  14          #include "tool.h"
+  15          #include "math.h"
+  16          
+  17          extern long tick;
+  18          extern long maxtick;
+  19          
+  20          //void AttitudeAlgorithm(long FREQ) { //姿态解算
+  21          //    if(RxFlag1 == 1) { //传感器在线
+  22          //        if(MPU.angle[0]) { //滤波
+  23          //            ;
+  24          //        }
+  25          
+  26          //        double s[3],c[3];
+  27          
+  28          //        for(int i=0; i<3; i++) {
+  29          //            s[i] = sin(MPU.angle[i]);
+  30          //            c[i] = cos(MPU.angle[i]);
+  31          //        }
+  32          
+  33          ////    double X[3][3] = {
+  34          ////      {1, 0,    0},
+  35          ////      {0, c[0], -s[0]},
+  36          ////      {0, s[0], c[0]}
+  37          ////    };
+  38          ////    double Y[3][3] = {
+  39          ////      {c[1],  0,  s[1]},
+  40          ////      {0,     1,  0},
+  41          ////      {-s[1], 0,  c[1]}
+  42          ////    };
+  43          ////    double Z[3][3] = {
+  44          ////      {c[2],  -s[2],  0},
+  45          ////      {s[2],  c[2],   0},
+  46          ////      {0,     0,      1}
+  47          ////    };
+  48          
+  49          //        double ZYX[3][3] = {
+  50          //            {c[0]*c[1], c[0]*s[1]*s[2]-c[2]*s[0], s[0]*s[2]+c[0]*c[2]*s[1]},
+  51          //            {c[1]*s[0], c[0]*c[2]+s[0]*s[1]*s[2], c[2]*s[0]*s[1]-c[0]*s[2]},
+  52          //            {-s[1],     c[1]*s[2],                c[1]*c[2]}
+  53          //        };
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 2   
+
+  54          
+  55          //        double ex[3][3] = {//平行于机身轴线，指向飞行器前方
+  56          //            {1,0,0},
+  57          //            {0,0,0},
+  58          //            {0,0,0}
+  59          //        };
+  60          //        double ey[3][3] = {//垂直于飞行器参考面，指向飞行器右方
+  61          //            {0,0,0},
+  62          //            {1,0,0},
+  63          //            {0,0,0}
+  64          //        };
+  65          //        double ez[3][3] = {//垂直于XOY平面，指向飞行器下方
+  66          //            {0,0,0},
+  67          //            {0,0,0},
+  68          //            {1,0,0}
+  69          //        };
+  70          
+  71          //        double body_dir[3][3],body_a[3],a[3][3];//机体坐标系
+  72          
+  73          //        martixMulti(ZYX,ex,a);
+  74          
+  75          //        for(int i=0; i<3; i++) {
+  76          //            body_dir[0][i] = a[i][0];
+  77          //            body_a[i] = body_dir[0][i]*MPU.a[i];
+  78          //            MPU.sped[i] = body_a[i]/FREQ;
+  79          //        }
+  80          
+  81          //        MPU.speed_now = sqrt(pow(MPU.sped[0],2)+pow(MPU.sped[1],2)+pow(MPU.sped[2],2));
+  82          
+  83          //        for(int i=0; i<3; i++) {
+  84          //            MPU.now[i] += 0.5*MPU.sped[i]/FREQ;
+  85          //        }
+  86          //    }
+  87          //}
+  88          
+  89          //void martixMulti(double a[3][3],double b[3][3],double c[3][3]) {
+  90          //  for(int i=0; i<3; i++) {
+  91          //      for(int j=0; j<3; j++) {
+  92          //          for(int k=0; k<3; k++) {
+  93          //              c[i][j] += a[i][k]*b[k][j];
+  94          //          }
+  95          //      }
+  96          //  }
+  97          //}
+  98          
+  99          float pdistance(int x0,int y0,int z0,int x,int y,int z) { //计算三维坐标系两点距离
+ 100   1          float a = sqrt(pow(x0-x,2)+pow(y0-y,2)+pow(z0-z,2));
+ 101   1          return a;
+ 102   1      }
+ 103          
+ 104          
+ 105          float map(float i,float imin,float imax,float rmin,float rmax) {
+ 106   1      //    i = limit(i,imin,imax);
+ 107   1          if(fabs(imax-imin)!=0)
+ 108   1              return ((i - imin) * (rmax - rmin)/(imax - imin) + rmin);
+ 109   1          else
+ 110   1              return 0;
+ 111   1      }
+ 112          
+ 113          float limit(float i,float min,float max) {
+ 114   1          if(i<min)i=min;
+ 115   1          if(i>max)i=max;
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 3   
+
+ 116   1          return i;
+ 117   1      }
+ 118          
+ 119          int outside(double a,double b,double c) { //如果a越界b，c,则返回1
+ 120   1          return ((a<b) || (a>c));
+ 121   1      }
+ 122          
+ 123          void abs_limit(float *a, float ABS_MAX) {
+ 124   1          if(*a > ABS_MAX)
+ 125   1              *a = ABS_MAX;
+ 126   1          if(*a < -ABS_MAX)
+ 127   1              *a = -ABS_MAX;
+ 128   1      }
+ 129          
+ 130          ///**
+ 131          //  ******************************************************************************
+ 132          //  *作者     ：tou_zi
+ 133          //  *编写时间 ：2019年4月6日
+ 134          //  *修改时间 ：2019年4月6日
+ 135          //  *函数名    ：initPose_Module
+ 136          //  *函数功能 ：初始化姿态解算模块
+ 137          //  *输入1    ：*pose 姿态解算结构体指针
+ 138          //  *返回值    ：无
+ 139          //  ******************************************************************************
+ 140          //  */
+ 141          
+ 142          
+ 143          ////#include "pose.h"
+ 144          ////#include "math.h"
+ 145          
+ 146          //void initPose_Module(Pose_Module *pose)
+ 147          //{
+ 148          ////标志位初始化
+ 149          //  pose->flag.run = 1;           //开启计算
+ 150          //  pose->flag.use_mag = 0;       //使用电子罗盘
+ 151          ////接口初始化
+ 152          //  pose->interface.data.a_x = 0;
+ 153          //  pose->interface.data.a_y = 0;
+ 154          //  pose->interface.data.a_z = 0;
+ 155          //  pose->interface.data.g_x = 0;
+ 156          //  pose->interface.data.g_y = 0;
+ 157          //  pose->interface.data.g_z = 0;
+ 158          //  pose->interface.data.m_x = 0;
+ 159          //  pose->interface.data.m_y = 0;
+ 160          //  pose->interface.data.m_z = 0;
+ 161          ////参数初始化
+ 162          //  pose->parameter.error_ki = 0;
+ 163          //  pose->parameter.error_kp = 0.65f;
+ 164          //  pose->parameter.correct_kp = 0.45f;
+ 165          ////中间变量清空
+ 166          //  pose->process.error.x = 0;
+ 167          //  pose->process.error.y = 0;
+ 168          //  pose->process.error.z = 0;
+ 169          //  pose->process.error_integral.x = 0;
+ 170          //  pose->process.error_integral.y = 0;
+ 171          //  pose->process.error_integral.z = 0;
+ 172          //
+ 173          //  pose->process.quaternion[0] = 1;
+ 174          //  pose->process.quaternion[1] = 0;
+ 175          //  pose->process.quaternion[2] = 0;
+ 176          //  pose->process.quaternion[3] = 0;
+ 177          ////数据初始化
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 4   
+
+ 178          //  pose->data.rotate_matrix[0][0] = 0;
+ 179          //  pose->data.rotate_matrix[0][1] = 0;
+ 180          //  pose->data.rotate_matrix[0][2] = 0;
+ 181          //  pose->data.rotate_matrix[1][0] = 0;
+ 182          //  pose->data.rotate_matrix[1][1] = 0;
+ 183          //  pose->data.rotate_matrix[1][2] = 0;
+ 184          //  pose->data.rotate_matrix[2][0] = 0;
+ 185          //  pose->data.rotate_matrix[2][1] = 0;
+ 186          //  pose->data.rotate_matrix[2][2] = 0;
+ 187          //
+ 188          //  pose->data.mag_world.x = 0;
+ 189          //  pose->data.mag_world.y = 0;
+ 190          //  pose->data.mag_world.z = 0;
+ 191          //
+ 192          //  pose->data.acc_world.x = 0;
+ 193          //  pose->data.acc_world.y = 0;
+ 194          //  pose->data.acc_world.z = 0;
+ 195          //
+ 196          //  pose->data.mag_correct.x = 0;
+ 197          //  pose->data.mag_correct.y = 0;
+ 198          //  pose->data.mag_correct.z = 0;
+ 199          //
+ 200          //  pose->data.acc_correct.x = 0;
+ 201          //  pose->data.acc_correct.y = 0;
+ 202          //  pose->data.acc_correct.z = 0;
+ 203          //
+ 204          //  pose->data.gyro_correct.x = 0;
+ 205          //  pose->data.gyro_correct.y = 0;
+ 206          //  pose->data.gyro_correct.z = 0;
+ 207          //
+ 208          //  pose->data.pit = 0;
+ 209          //  pose->data.rol = 0;
+ 210          //  pose->data.yaw = 0;
+ 211          //}
+ 212          
+ 213          //void simple_3d_trans(XYZ_Data_f *ref, XYZ_Data_f *in, XYZ_Data_f *out) //小范围内正确。
+ 214          //{
+ 215          //  static s8 pn;
+ 216          //  static float h_tmp_x,h_tmp_y;
+ 217          //
+ 218          //  h_tmp_x = sqrt(ref->z * ref->z + ref->y * ref->y);
+ 219          //  h_tmp_y = sqrt(ref->z * ref->z + ref->x * ref->x);
+ 220          //
+ 221          //  pn = ref->z < 0 ? -1 : 1;
+ 222          //
+ 223          //  out->x = ( h_tmp_x *in->x - pn *ref->x *in->z ) ;
+ 224          //  out->y = ( pn *h_tmp_y *in->y - ref->y *in->z ) ;
+ 225          //  out->z = ref->x *in->x + ref->y *in->y + ref->z *in->z ;
+ 226          
+ 227          //}
+ 228          
+ 229          
+ 230          ///**
+ 231          //  ******************************************************************************
+ 232          //  *作者     ：tou_zi
+ 233          //  *编写时间 ：2019年4月6日
+ 234          //  *修改时间 ：2019年4月6日
+ 235          //  *函数名    ：calculatePose_Module
+ 236          //  *函数功能 ：姿态解算 --  四元数解算
+ 237          //  *输入1    ：*pose 姿态解算结构体指针
+ 238          //  *输入2    ：cycle 周期
+ 239          //  *返回值    ：无
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 5   
+
+ 240          //  ******************************************************************************
+ 241          //  */
+ 242          
+ 243          //void calculatePose_Module(Pose_Module *pose, float cycle)
+ 244          //{
+ 245          //  float length;
+ 246          //  XYZ_Data_f acc_tmp;
+ 247          //  XYZ_Data_f error;
+ 248          //
+ 249          //  if (pose->flag.run == 0)
+ 250          //    return;
+ 251          //
+ 252          ///////////////////////////////////////////////////////////////////////////////////////////////////
+ 253          //  //电子罗盘处理
+ 254          //  if (pose->flag.use_mag == 1)
+ 255          //  {
+ 256          //    //利用电子罗盘计算yaw
+ 257          //    length = sqrt(pose->data.mag_correct.x * pose->data.mag_correct.x + pose->data.mag_correct.y * pose-
+             ->data.mag_correct.y);
+ 258          //    if( pose->data.mag_correct.x != 0 && pose->data.mag_correct.y != 0 && pose->data.mag_correct.z != 0 
+             -&& length != 0)
+ 259          //    {
+ 260          //      pose->process.mag_yaw = arctan2(pose->data.mag_correct.y / length, pose->data.mag_correct.x / leng
+             -th);
+ 261          //    }
+ 262          
+ 263          //    //计算yaw偏差
+ 264          //    if(pose->data.rotate_matrix[2][2] > 0.0f )
+ 265          //    {
+ 266          //      pose->process.mag_yaw_bias = pose->parameter.correct_kp * translateAngle(pose->data.yaw - pose->pr
+             -ocess.mag_yaw);
+ 267          //      //矫正值过大 -- 矫正值错误
+ 268          //      if(pose->process.mag_yaw_bias > 360 || pose->process.mag_yaw_bias < -360)
+ 269          //      {
+ 270          //        pose->process.mag_yaw_bias = 0;
+ 271          //      }
+ 272          //    }
+ 273          //
+ 274          //    else
+ 275          //    {
+ 276          //      pose->process.mag_yaw_bias = 0; //角度过大，停止修正，修正的目标值可能不正确
+ 277          //    }
+ 278          //  }
+ 279          
+ 280          //  else
+ 281          //  {
+ 282          //    pose->process.mag_yaw_bias = 0;
+ 283          //  }
+ 284          ///////////////////////////////////////////////////////////////////////////////////////////////////
+ 285          //  //加速度计处理
+ 286          //  length = sqrt(  *(pose->interface.data.a_x) * *(pose->interface.data.a_x) +
+ 287          //                  *(pose->interface.data.a_y) * *(pose->interface.data.a_y) +
+ 288          //                  *(pose->interface.data.a_z) * *(pose->interface.data.a_z));
+ 289          //
+ 290          //  if( ABS(*(pose->interface.data.a_x)) < 1050.0f &&
+ 291          //      ABS(*(pose->interface.data.a_y)) < 1050.0f &&
+ 292          //      ABS(*(pose->interface.data.a_z)) < 1050.0f )
+ 293          //  {
+ 294          //    //加速度计归一化
+ 295          //    acc_tmp.x = *(pose->interface.data.a_x) / length;
+ 296          //    acc_tmp.y = *(pose->interface.data.a_y) / length;
+ 297          //    acc_tmp.z = *(pose->interface.data.a_z) / length;
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 6   
+
+ 298          //
+ 299          //    //叉乘计算偏差  --  在无人机稳定时进行补偿
+ 300          //    if(800.0f < length && length < 1200.0f)
+ 301          //    {
+ 302          //      /* 叉乘得到误差 */
+ 303          //      error.x = (acc_tmp.y * pose->data.rotate_matrix[2][2] - acc_tmp.z * pose->data.rotate_matrix[1][2]
+             -);
+ 304          //      error.y = (acc_tmp.z * pose->data.rotate_matrix[0][2] - acc_tmp.x * pose->data.rotate_matrix[2][2]
+             -);
+ 305          //      error.z = (acc_tmp.x * pose->data.rotate_matrix[1][2] - acc_tmp.y * pose->data.rotate_matrix[0][2]
+             -);
+ 306          //
+ 307          //      /* 误差低通 */
+ 308          //      pose->process.error.x += 1.0f * 3.14f * cycle *(error.x  - pose->process.error.x );
+ 309          //      pose->process.error.y += 1.0f * 3.14f * cycle *(error.y  - pose->process.error.y );
+ 310          //      pose->process.error.z += 1.0f * 3.14f * cycle *(error.z  - pose->process.error.z );
+ 311          //    }
+ 312          //  }
+ 313          //  else
+ 314          //  {
+ 315          //    pose->process.error.x = 0;
+ 316          //    pose->process.error.y = 0  ;
+ 317          //    pose->process.error.z = 0 ;
+ 318          //  }
+ 319          
+ 320          //  // 误差积分
+ 321          //  pose->process.error_integral.x += pose->process.error.x * pose->parameter.error_ki * cycle;
+ 322          //  pose->process.error_integral.y += pose->process.error.y * pose->parameter.error_ki * cycle;
+ 323          //  pose->process.error_integral.z += pose->process.error.z * pose->parameter.error_ki * cycle;
+ 324          //
+ 325          //  //积分限幅 -- 2°以内
+ 326          //  pose->process.error_integral.x = LIMIT(pose->process.error_integral.x, - 0.035f ,0.035f );
+ 327          //  pose->process.error_integral.y = LIMIT(pose->process.error_integral.y, - 0.035f ,0.035f );
+ 328          //  pose->process.error_integral.z = LIMIT(pose->process.error_integral.z, - 0.035f ,0.035f );
+ 329          //
+ 330          ///////////////////////////////////////////////////////////////////////////////////////////////////
+ 331          //  //开始修正陀螺仪值
+ 332          //  pose->data.gyro_correct.x = (*(pose->interface.data.g_x) - pose->data.rotate_matrix[0][2] * pose->proc
+             -ess.mag_yaw_bias) * 0.01745329f +
+ 333          //            (pose->parameter.error_kp * pose->process.error.x + pose->process.error_integral.x) ;
+ 334          //  pose->data.gyro_correct.y = (*(pose->interface.data.g_y) - pose->data.rotate_matrix[1][2] * pose->proc
+             -ess.mag_yaw_bias) * 0.01745329f +
+ 335          //            (pose->parameter.error_kp * pose->process.error.y + pose->process.error_integral.y) ;
+ 336          //  pose->data.gyro_correct.z = (*(pose->interface.data.g_z) - pose->data.rotate_matrix[2][2] * pose->proc
+             -ess.mag_yaw_bias) * 0.01745329f +
+ 337          //            (pose->parameter.error_kp * pose->process.error.z + pose->process.error_integral.z) ;
+ 338          //
+ 339          ///////////////////////////////////////////////////////////////////////////////////////////////////
+ 340          //  // 一阶龙格库塔更新四元数值
+ 341          //  pose->process.quaternion[0] += (-pose->process.quaternion[1] * pose->data.gyro_correct.x - pose->proce
+             -ss.quaternion[2] * pose->data.gyro_correct.y - pose->process.quaternion[3] * pose->data.gyro_correct.z) * cycle / 2.0f;
+ 342          //  pose->process.quaternion[1] +=  (pose->process.quaternion[0] * pose->data.gyro_correct.x + pose->proce
+             -ss.quaternion[2] * pose->data.gyro_correct.z - pose->process.quaternion[3] * pose->data.gyro_correct.y) * cycle / 2.0f;
+ 343          //  pose->process.quaternion[2] +=  (pose->process.quaternion[0] * pose->data.gyro_correct.y - pose->proce
+             -ss.quaternion[1] * pose->data.gyro_correct.z + pose->process.quaternion[3] * pose->data.gyro_correct.x) * cycle / 2.0f;
+ 344          //  pose->process.quaternion[3] +=  (pose->process.quaternion[0] * pose->data.gyro_correct.z + pose->proce
+             -ss.quaternion[1] * pose->data.gyro_correct.y - pose->process.quaternion[2] * pose->data.gyro_correct.x) * cycle / 2.0f;
+ 345          
+ 346          //  //四元数归一化
+ 347          //  length = sqrt(pose->process.quaternion[0] * pose->process.quaternion[0] +
+ 348          //                pose->process.quaternion[1] * pose->process.quaternion[1] +
+ 349          //                pose->process.quaternion[2] * pose->process.quaternion[2] +
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 7   
+
+ 350          //                pose->process.quaternion[3] * pose->process.quaternion[3]);
+ 351          //
+ 352          //  if (length != 0)
+ 353          //  {
+ 354          //    pose->process.quaternion[0] /= length;
+ 355          //    pose->process.quaternion[1] /= length;
+ 356          //    pose->process.quaternion[2] /= length;
+ 357          //    pose->process.quaternion[3] /= length;
+ 358          //  }
+ 359          //
+ 360          /////////////////////////////////////////////////////////////////////////////////////////////////////
+ 361          //  //计算旋转矩阵
+ 362          //  pose->data.rotate_matrix[0][0] =  pose->process.quaternion[0] * pose->process.quaternion[0] + pose->pr
+             -ocess.quaternion[1] * pose->process.quaternion[1] -
+ 363          //                                    pose->process.quaternion[2] * pose->process.quaternion[2] - pose->pr
+             -ocess.quaternion[3] * pose->process.quaternion[3];
+ 364          //  pose->data.rotate_matrix[0][1] =  2 * (pose->process.quaternion[1] * pose->process.quaternion[2] + pos
+             -e->process.quaternion[0] * pose->process.quaternion[3]);
+ 365          //  pose->data.rotate_matrix[0][2] =  2 * (pose->process.quaternion[1] * pose->process.quaternion[3] - pos
+             -e->process.quaternion[0] * pose->process.quaternion[2]);
+ 366          //
+ 367          //  pose->data.rotate_matrix[1][0] =  2 * (pose->process.quaternion[1] * pose->process.quaternion[2] - pos
+             -e->process.quaternion[0] * pose->process.quaternion[3]);
+ 368          //  pose->data.rotate_matrix[1][1] =  pose->process.quaternion[0] * pose->process.quaternion[0] - pose->pr
+             -ocess.quaternion[1] * pose->process.quaternion[1] +
+ 369          //                                    pose->process.quaternion[2] * pose->process.quaternion[2] - pose->pr
+             -ocess.quaternion[3] * pose->process.quaternion[3];
+ 370          //  pose->data.rotate_matrix[1][2] =  2 * (pose->process.quaternion[2] * pose->process.quaternion[3] + pos
+             -e->process.quaternion[0] * pose->process.quaternion[1]);
+ 371          //
+ 372          //  pose->data.rotate_matrix[2][0] =  2 * (pose->process.quaternion[1] * pose->process.quaternion[3] + pos
+             -e->process.quaternion[0] * pose->process.quaternion[2]);
+ 373          //  pose->data.rotate_matrix[2][1] =  2 * (pose->process.quaternion[2] * pose->process.quaternion[3] - pos
+             -e->process.quaternion[0] * pose->process.quaternion[1]);
+ 374          //  pose->data.rotate_matrix[2][2] =  pose->process.quaternion[0] * pose->process.quaternion[0] - pose->pr
+             -ocess.quaternion[1] * pose->process.quaternion[1] -
+ 375          //                                    pose->process.quaternion[2] * pose->process.quaternion[2] + pose->pr
+             -ocess.quaternion[3] * pose->process.quaternion[3];
+ 376          //
+ 377          //  //计算世界坐标系下的磁力计值
+ 378          //  if (pose->flag.use_mag == 1)
+ 379          //  {
+ 380          //    pose->data.mag_world.x =  pose->data.rotate_matrix[0][0] * *(pose->interface.data.m_x) +
+ 381          //                              pose->data.rotate_matrix[1][0] * *(pose->interface.data.m_y) +
+ 382          //                              pose->data.rotate_matrix[2][0] * *(pose->interface.data.m_z) ;
+ 383          //
+ 384          //    pose->data.mag_world.y =  pose->data.rotate_matrix[0][1] * *(pose->interface.data.m_x) +
+ 385          //                              pose->data.rotate_matrix[1][1] * *(pose->interface.data.m_y) +
+ 386          //                              pose->data.rotate_matrix[2][1] * *(pose->interface.data.m_z) ;
+ 387          //
+ 388          //    pose->data.mag_world.z =  pose->data.rotate_matrix[0][2] * *(pose->interface.data.m_x) +
+ 389          //                              pose->data.rotate_matrix[1][2] * *(pose->interface.data.m_y) +
+ 390          //                              pose->data.rotate_matrix[2][2] * *(pose->interface.data.m_z) ;
+ 391          //  }
+ 392          //
+ 393          //  //计算世界坐标系下的加速度值
+ 394          //  pose->data.acc_world.x =  pose->data.rotate_matrix[0][0] * *(pose->interface.data.a_x) +
+ 395          //                            pose->data.rotate_matrix[1][0] * *(pose->interface.data.a_y) +
+ 396          //                            pose->data.rotate_matrix[2][0] * *(pose->interface.data.a_z) ;
+ 397          //
+ 398          //  pose->data.acc_world.y =  pose->data.rotate_matrix[0][1] * *(pose->interface.data.a_x) +
+ 399          //                            pose->data.rotate_matrix[1][1] * *(pose->interface.data.a_y) +
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 8   
+
+ 400          //                            pose->data.rotate_matrix[2][1] * *(pose->interface.data.a_z) ;
+ 401          //
+ 402          //  pose->data.acc_world.z =  pose->data.rotate_matrix[0][2] * *(pose->interface.data.a_x) +
+ 403          //                            pose->data.rotate_matrix[1][2] * *(pose->interface.data.a_y) +
+ 404          //                            pose->data.rotate_matrix[2][2] * *(pose->interface.data.a_z) ;
+ 405          //
+ 406          //  //求解欧拉角
+ 407          //  pose->data.rol = arctan2(pose->data.rotate_matrix[2][2], pose->data.rotate_matrix[1][2]);
+ 408          //  pose->data.pit = -arcsin(pose->data.rotate_matrix[0][2]);
+ 409          //  pose->data.yaw = arctan2(pose->data.rotate_matrix[0][0], pose->data.rotate_matrix[0][1]);
+ 410          //
+ 411          ///////////////////////////////////////////////////////////////////////////////////////////////////
+ 412          //  //计算机体坐标系矫正后的加速度--不受俯仰和翻滚影响
+ 413          //  pose->data.acc_correct.x =   pose->data.acc_world.x * cos(pose->data.yaw) + pose->data.acc_world.y * s
+             -in(pose->data.yaw);
+ 414          //  pose->data.acc_correct.y =  -pose->data.acc_world.x * sin(pose->data.yaw) + pose->data.acc_world.y * c
+             -os(pose->data.yaw);
+ 415          //  pose->data.acc_correct.z =   pose->data.acc_world.z;
+ 416          //
+ 417          //  //计算机体坐标系矫正后的磁场--不受俯仰和翻滚影响
+ 418          //  if (pose->flag.use_mag == 1)
+ 419          //  {
+ 420          //    XYZ_Data_f ref_v = (XYZ_Data_f){pose->data.rotate_matrix[0][2], pose->data.rotate_matrix[1][2], pose
+             -->data.rotate_matrix[2][2]};
+ 421          //    XYZ_Data_f mag_tmp = (XYZ_Data_f){*pose->interface.data.m_x, *pose->interface.data.m_y, *pose->inter
+             -face.data.m_z};
+ 422          //
+ 423          //    length =  sqrt( *(pose->interface.data.m_x) * *(pose->interface.data.m_x) +
+ 424          //                    *(pose->interface.data.m_y) * *(pose->interface.data.m_y) +
+ 425          //                    *(pose->interface.data.m_z) * *(pose->interface.data.m_z));
+ 426          //
+ 427          ////    length *= sqrt( pose->data.rotate_matrix[0][2] * pose->data.rotate_matrix[0][2] +
+ 428          ////                    pose->data.rotate_matrix[1][2] * pose->data.rotate_matrix[1][2] +
+ 429          ////                    pose->data.rotate_matrix[2][2] * pose->data.rotate_matrix[2][2] );
+ 430          ////
+ 431          //    if (length != 0)
+ 432          //    {
+ 433          //      simple_3d_trans(&ref_v, &mag_tmp, &pose->data.mag_correct);
+ 434          ////      pose->data.mag_correct.z = pose->data.mag_world.z;
+ 435          ////      pose->data.mag_correct.x = sqrt(1 - (pose->data.mag_correct.z / length) * (pose->data.mag_correc
+             -t.z / length)) * *(pose->interface.data.m_x);
+ 436          ////      pose->data.mag_correct.y = sqrt(1 - (pose->data.mag_correct.z / length) * (pose->data.mag_correc
+             -t.z / length)) * *(pose->interface.data.m_y);
+ 437          //    }
+ 438          //  }
+ 439          //
+ 440          //}
+ 441          
+ 442          ///*******************************************************************************
+ 443          //* 函 数 名         : Sqrt
+ 444          //* 函数功能         : 快速算根值
+ 445          //* 输    入         : number 根号里边的数
+ 446          //* 输    出         : 最大的绝对值
+ 447          //*******************************************************************************/
+ 448          ////float sqrt(float number)
+ 449          ////{
+ 450          ////  long i;
+ 451          ////  float x, y;
+ 452          ////  const float f = 1.5F;
+ 453          ////  x = number * 0.5F;
+ 454          ////  y = number;
+ 455          ////  i = * ( long * ) &y;
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 9   
+
+ 456          ////  i = 0x5f3759df - ( i >> 1 );
+ 457          
+ 458          ////  y = * ( float * ) &i;
+ 459          ////  y = y * ( f - ( x * y * y ) );
+ 460          ////  y = y * ( f - ( x * y * y ) );
+ 461          ////  return number * y;
+ 462          ////}
+ 463          ///*******************************************************************************
+ 464          //* 函 数 名         : Angle_Translate
+ 465          //* 函数功能         : 将角度转变为-180~180之间
+ 466          //* 输    入         :
+ 467          //* 输    出         :
+ 468          //*******************************************************************************/
+ 469          //float translateAngle(float angle)
+ 470          //{
+ 471          //  while (angle > ANGLE_MAX)         //判断目标角度是否在允许角度范围
+ 472          //    angle -= 360.0f;
+ 473          //  while (angle < ANGLE_MIN)
+ 474          //    angle += 360.0f;
+ 475          //  return angle;
+ 476          //}
+ 477          ///*******************************************************************************
+ 478          //* 函 数 名         : Sin
+ 479          //* 函数功能         :
+ 480          //* 输    入         :
+ 481          //* 输    出         :
+ 482          //*******************************************************************************/
+ 483          ////float sin(float angle)
+ 484          ////{
+ 485          ////  float sine, rad;
+ 486          ////  angle = translateAngle(angle);
+ 487          ////  rad = angle * PI / 180.0f;
+ 488          ////
+ 489          ////  sine = (rad < 0) ? rad * (1.27323954f + 0.405284735f * rad) : rad * (1.27323954f - 0.405284735f * ra
+             -d);
+ 490          ////  sine = (sine < 0) ? sine * (-0.225f * (sine + 1) + 1) : sine * (0.225f * (sine - 1) + 1);
+ 491          ////  return sine;
+ 492          ////}
+ 493          ///*******************************************************************************
+ 494          //* 函 数 名         : Cos
+ 495          //* 函数功能         :
+ 496          //* 输    入         :
+ 497          //* 输    出         :
+ 498          //*******************************************************************************/
+ 499          ////float cos(float angle)
+ 500          ////{
+ 501          ////  return sin(angle + 90.0f);
+ 502          ////}
+ 503          ///*******************************************************************************
+ 504          //* 函 数 名         : Tan
+ 505          //* 函数功能         :
+ 506          //* 输    入         :
+ 507          //* 输    出         :
+ 508          //*******************************************************************************/
+ 509          ////float tan(float angle)
+ 510          ////{
+ 511          ////  return sin(angle) / cos(angle);
+ 512          ////}
+ 513          ///*******************************************************************************
+ 514          //* 函 数 名         : ATan1
+ 515          //* 函数功能         : 反正切 （+- 0.09°）
+ 516          //* 输    入         :
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 10  
+
+ 517          //* 输    出         :
+ 518          //*******************************************************************************/
+ 519          //float arctan1(float tan)
+ 520          //{
+ 521          //  float angle = (ABS(tan) > 1.0f) ?                                                                     
+             -            \
+*** WARNING C329 IN LINE 521 OF ..\BSP\PID\tool.c: single-line comment contains line-continuation
+ 522          //                90.0f - ABS(1.0f / tan) * (45.0f - (ABS(1.0f / tan) - 1.0f) * (14.0f + 3.83f * ABS(1.0f 
+             -/ tan)))  : \
+ 523          //                ABS(tan) * (45.0f - (ABS(tan) - 1.0f) * (14.0f + 3.83f * ABS(tan)));
+*** WARNING C329 IN LINE 522 OF ..\BSP\PID\tool.c: single-line comment contains line-continuation
+ 524          //  return (tan > 0) ? angle : -angle;
+ 525          //}
+ 526          ///*******************************************************************************
+ 527          //* 函 数 名         : ATan2
+ 528          //* 函数功能         : 反正切 （+- 0.09°）
+ 529          //* 输    入         :
+ 530          //* 输    出         :
+ 531          //*******************************************************************************/
+ 532          //float arctan2(float x, float y)
+ 533          //{
+ 534          //  float tan, angle;
+ 535          //
+ 536          //  if (x == 0 && y == 0)   //不存在
+ 537          //    return 0;
+ 538          //
+ 539          //  if (x == 0)             //y轴上
+ 540          //  {
+ 541          //    if (y > 0)
+ 542          //      return 90;
+ 543          //    else
+ 544          //      return -90;
+ 545          //  }
+ 546          //
+ 547          //  if (y == 0)             //x轴上
+ 548          //  {
+ 549          //    if (x > 0)
+ 550          //      return 0;
+ 551          //    else
+ 552          //      return -180.0f;
+ 553          //  }
+ 554          //
+ 555          //  tan = y / x;
+ 556          //  angle = arctan1(tan);
+ 557          //  if (x < 0 && angle > 0)
+ 558          //    angle -= 180.0f;
+ 559          //  else if (x < 0 && angle < 0)
+ 560          //    angle += 180.0f;
+ 561          //  return angle;
+ 562          //}
+ 563          ///*******************************************************************************
+ 564          //* 函 数 名         : arcsin1
+ 565          //* 函数功能         : 反正切 （+- 0.09°）
+ 566          //* 输    入         :
+ 567          //* 输    出         :
+ 568          //*******************************************************************************/
+ 569          //float arcsin(float i)
+ 570          //{
+ 571          //  return arctan1(i / sqrt(1 - i * i));
+ 572          //}
+ 573          ///*******************************************************************************
+ 574          //* 函 数 名         : Exp
+C51 COMPILER V9.60.0.0   TOOL                                                              11/11/2021 20:00:48 PAGE 11  
+
+ 575          //* 函数功能         : e指数
+ 576          //* 输    入         :
+ 577          //* 输    出         :
+ 578          //*******************************************************************************/
+ 579          ////float exp(float x)  //计算e^x,实现系统的exp()功能?
+ 580          ////{
+ 581          ////  if (x == 0) return 1;
+ 582          ////  if (x<0) return 1 / exp(-x);
+ 583          
+ 584          ////  double y = x, ex_p1 = 0, ex_p2 = 0, ex_p3 = 0, ex_px = 0, ex_tmp = 1, dex_px = 1, tmp;
+ 585          ////  int l;
+ 586          ////  for (l = 1, tmp = 1; ((ex_px - ex_tmp)>1e-10 || (ex_px - ex_tmp)<-1e-10) && dex_px>1e-10; l++)
+ 587          ////  {
+ 588          ////    ex_tmp = ex_px;
+ 589          ////    tmp *= y;
+ 590          ////    tmp = tmp / l;
+ 591          ////    ex_p1 += tmp;
+ 592          ////    ex_p2 = ex_p1 + tmp*y / (l + 1);
+ 593          ////    ex_p3 = ex_p2 + tmp*y*y / (l + 1) / (l + 2);
+ 594          ////    dex_px = ex_p3 - ex_p2;
+ 595          ////    ex_px = ex_p3 - dex_px*dex_px / (ex_p3 - 2 * ex_p2 + ex_p1);
+ 596          ////  }
+ 597          ////  return ex_px + 1;
+ 598          ////}
+ 599          
+ 600          
+ 601          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    767    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      63
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

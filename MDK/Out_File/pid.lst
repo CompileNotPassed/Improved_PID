@@ -1,0 +1,116 @@
+C51 COMPILER V9.60.0.0   PID                                                               11/12/2021 21:18:30 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE PID
+OBJECT MODULE PLACED IN .\Out_File\pid.obj
+COMPILER INVOKED BY: D:\Keil_for_C51\C51\BIN\C51.EXE ..\BSP\PID\pid.c LARGE OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\..\L
+                    -ibraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\src;..\COD
+                    -E;..\BSP\Position_PID;..\BSP\oled;..\BSP\PID) DEBUG PRINT(.\Out_File\pid.lst) TABS(2) OBJECT(.\Out_File\pid.obj)
+
+line level    source
+
+   1          #include "pid.h"
+   2          #include "tool.h"
+   3          
+   4          PID_TypeDef Motor[2];
+   5          
+   6          void PID_Reset(PID_TypeDef  *pid, float kp, float ki, float kd)
+   7          {
+   8   1          pid->Kp = kp;
+   9   1          pid->Ki = ki;
+  10   1          pid->Kd = kd;
+  11   1      }
+  12          
+  13          /**
+  14            * @brief  初始化PID结构体
+  15            * @param  PID结构体指针
+  16              @param  比例系数
+  17                  @param  积分系数
+  18                  @param  微分系数
+  19                  @param  积分最大值
+  20                  @param  总输出最大值
+  21            * @retval None
+  22            */
+  23          void PID_Init(
+  24              PID_TypeDef*    pid,
+  25              uint32            mode,
+  26              uint32            maxout,
+  27              uint32            intergral_limit,
+  28              float               kp,
+  29              float               ki,
+  30              float               kd)
+  31          {
+  32   1          pid->IntegralLimit = intergral_limit;
+  33   1          pid->MaxOutput = maxout;
+  34   1          pid->pid_mode = mode;
+  35   1      
+  36   1          pid->target[0]=0;
+  37   1          pid->Kp = kp;
+  38   1          pid->Ki = ki;
+  39   1          pid->Kd = kd;
+  40   1      }
+  41          
+  42          float PID_Calculate(PID_TypeDef *pid, float target, float feedback)
+  43          {
+  44   1          pid->feedback[NOW] = feedback;
+  45   1          pid->target[NOW] = target;
+  46   1          pid->err[NOW] = target - feedback;
+  47   1      
+  48   1          if (pid->max_err != 0 && ABS(pid->err[NOW]) >  pid->max_err  )
+  49   1              return 0;
+  50   1          if (pid->deadband != 0 && ABS(pid->err[NOW]) < pid->deadband)
+  51   1              return 0;
+  52   1      
+  53   1          if(pid->pid_mode == POSITION_PID)                    //位置式PID
+C51 COMPILER V9.60.0.0   PID                                                               11/12/2021 21:18:30 PAGE 2   
+
+  54   1          {
+  55   2              pid->pout = pid->Kp * pid->err[NOW];
+  56   2              pid->iout += pid->Ki * pid->err[NOW];
+  57   2              pid->dout = pid->Kd * (pid->err[NOW] - pid->err[LAST] );
+  58   2      
+  59   2              abs_limit(&(pid->iout), pid->IntegralLimit);                //限制积分输出
+  60   2              pid->pos_out = pid->pout + pid->iout + pid->dout;       // 计算总输出
+  61   2              abs_limit(&(pid->pos_out), pid->MaxOutput);                 // 限制总输出
+  62   2              pid->last_pos_out = pid->pos_out;                                       //更新上一次总输出
+  63   2          }
+  64   1          else if(pid->pid_mode == DELTA_PID)                 //增量式PID
+  65   1          {
+  66   2              pid->pout = pid->Kp * (pid->err[NOW] - pid->err[LAST]);
+  67   2              pid->iout = pid->Ki * pid->err[NOW];
+  68   2              pid->dout = pid->Kd * (pid->err[NOW] - 2*pid->err[LAST] + pid->err[LLAST]);
+  69   2      
+  70   2              abs_limit(&(pid->iout), pid->IntegralLimit);
+  71   2              pid->delta_u = pid->pout + pid->iout + pid->dout;
+  72   2              pid->delta_out = pid->last_delta_out + pid->delta_u;
+  73   2              abs_limit(&(pid->delta_out), pid->MaxOutput);
+  74   2              pid->last_delta_out = pid->delta_out;   //update last time
+  75   2          }
+  76   1      
+  77   1          pid->err[LLAST] = pid->err[LAST];
+  78   1          pid->err[LAST] = pid->err[NOW];
+  79   1          pid->feedback[LLAST] = pid->feedback[LAST];
+  80   1          pid->feedback[LAST] = pid->feedback[NOW];
+  81   1          pid->target[LLAST] = pid->target[LAST];
+  82   1          pid->target[LAST] = pid->target[NOW];
+  83   1      
+  84   1          return pid->pid_mode==POSITION_PID ? pid->pos_out : pid->delta_out;
+  85   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1490    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =    196      53
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

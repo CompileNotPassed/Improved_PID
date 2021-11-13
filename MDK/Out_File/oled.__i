@@ -1,0 +1,1 @@
+"..\BSP\oled\oled.c" LARGE OMF2 OPTIMIZE (8,SPEED) BROWSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\src;..\CODE;..\BSP\Position_PID;..\BSP\oled) DEBUG PRINT(.\Out_File\oled.lst) TABS (2) OBJECT(.\Out_File\oled.obj)
